@@ -54,11 +54,16 @@ connection = routeros_api.RouterOsApiPool(IP_MIKROTIK, username=USER_MIKROTIK, p
 api = connection.get_api()
 
 # obtengo el address list de la lista 'Suspendido'
-response = api.get_resource("/ip/firewall/address-list").get(list='SUSPENDIDO')
-
+response = api.get_resource("/ip/firewall/address-list").get(list='Suspendido')
 addr_list = []
 for ip in response:
     addr_list.append(ip['address'])    # ips mkt
+
+# si no esta en addr_list lo agregamos
+for item in sheet_list:
+    if item['ip'] not in addr_list:
+        created_client = api.get_resource("/ip/firewall/address-list").add(address = item['ip'], list = 'Suspendido', comment = item['nombre'])
+        response = api.get_resource("/ip/firewall/address-list").get(list='Suspendido')
 
 # recorro response para generar una lista que solo contenga el id + la ip + comentario (lista de suspendidos)
 susp_list = []
@@ -74,13 +79,6 @@ for ip in sheet_list:
         if item['address'] == ip['ip']:
             # Si el nombre coincide, agregar el diccionario a la lista susp_list_id
             susp_list_id.append(item['id'])  # lista de los ids a suspender
-
-    for ip in addr_list:
-        for item in sheet_list:
-            if item['ip'] not in addr_list:
-                created_client = api.get_resource("/ip/firewall/address-list").add(address = item['ip'], list = 'SUSPENDIDO', comment = item['nombre'])
-                print(created_client)
-                print('hola')
 
 comment_list = []
 for comment in susp_list:
