@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 # Cargar variables de entorno del archivo .env
 load_dotenv()
+
 # ==============================================================================
 
 # variables sheets
@@ -49,7 +50,6 @@ for client in DATA_PARSED:
 # ==============================================================================
 
 # conexion con la api Miktoik
-
 connection = routeros_api.RouterOsApiPool(IP_MIKROTIK, username=USER_MIKROTIK, password=PASS_MIKROTIK, plaintext_login=True)
 api = connection.get_api()
 
