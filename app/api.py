@@ -1,5 +1,4 @@
 from fastapi import FastAPI, Request
-import routeros_api
 from fastapi.middleware.cors import CORSMiddleware
 
 import os
@@ -11,7 +10,6 @@ from googleapiclient.discovery import build
 from google.oauth2 import service_account
 
 app = FastAPI()
-
 
 # Configuración CORS
 origins = [
@@ -26,8 +24,80 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # routes
+@app.post("/preview")
+async def preview(request: Request):
+    data = await request.json()
+    IP_MIKROTIK = data.get('IP_MIKROTIK')
+    SPREADSHEET_NAME = data.get('SPREADSHEET_NAME')
+    SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+    load_dotenv()
+    KEY = os.getenv('KEY')
+    SPREADSHEET_ID = os.getenv('SPREADSHEET_ID')
+    PASS_MIKROTIK = os.getenv('PASS_MIKROTIK')
+    USER_MIKROTIK = os.getenv('USER_MIKROTIK')
+
+    # ==============================================================================
+    # conexion a google sheets
+    creds = None
+    creds = service_account.Credentials.from_service_account_file(KEY,scopes=SCOPES)
+
+    service = build('sheets', 'v4', credentials=creds)
+    sheet = service.spreadsheets()
+
+    # obteniendo los valores
+    result = sheet.values().get(spreadsheetId=SPREADSHEET_ID, range=SPREADSHEET_NAME).execute()
+
+    values = result.get('values', [])
+    DATA_PARSED = []
+    # Obtén los encabezados de la hoja de cálculo
+    headers = values[0]
+
+    # Convierte cada fila de la hoja de cálculo en un diccionario
+    for row in values[1:]:
+        data = {}
+        for i in range(len(headers)):
+            data[headers[i]] = row[i]
+        DATA_PARSED.append(data)
+
+    # creamos sheet_list
+    sheet_list = []
+    for client in DATA_PARSED:
+        sheet_data = {'ip' : client["ip"], 'nombre' : client['nombre']}
+        sheet_list.append(sheet_data)
+
+    # conexion con la api Miktoik
+    connection = routeros_api.RouterOsApiPool(IP_MIKROTIK, username=USER_MIKROTIK, password=PASS_MIKROTIK, plaintext_login=True)
+    api = connection.get_api()
+
+    # obtengo el address list de la lista 'Suspendido'
+    response = api.get_resource("/ip/firewall/address-list").get(list='Suspendido')
+    addr_list = []
+    susp_list = []
+    for ip in response:
+        addr_list.append({'ip' : ip['address'],'comment' : ip['comment']})    # ips mkt
+    for item in addr_list:
+        if item in sheet_list:
+            susp_list.append(item)
+            
+            
+            
+
+        
+    comment_list = []
+    for comment in addr_list:
+        for item in sheet_list:
+            if item['ip'] == comment['ip']:
+                item = {'ip' : comment['ip'], 'comment' : comment['comment']}
+                comment_list.append(item)   # lista de comentarios
+                
+    fecha = ' // SUSPENDIDO - 09/05/2023'
+    comment_finally = []
+    for com in comment_list:
+        item =  {'ip':com['ip'], 'comment':com['comment'] + fecha}
+        comment_finally.append(item)
+    return [comment_list, comment_finally]
+
 @app.post("/script")
 async def main(request: Request):
     data = await request.json()
@@ -128,3 +198,5 @@ async def main(request: Request):
     connection.disconnect()
 
     return {'message': 'done'}
+
+
