@@ -74,29 +74,50 @@ async def preview(request: Request):
     response = api.get_resource("/ip/firewall/address-list").get(list='Suspendido')
     addr_list = []
     susp_list = []
+    # si no esta en addr_list lo agregamos
     for ip in response:
         addr_list.append({'ip' : ip['address'],'comment' : ip['comment']})    # ips mkt
+        
+
     for item in addr_list:
         if item in sheet_list:
             susp_list.append(item)
             
-            
-            
+    addr_list_ip = []
+    for ip in addr_list:
+        addr_list_ip.append(ip['ip'])
 
-        
+    for item in sheet_list:
+            if item['ip'] not in addr_list_ip:
+                created_client = api.get_resource("/ip/firewall/address-list").add(address = item['ip'], list = 'Suspendido', comment = item['nombre'])
+    response = api.get_resource("/ip/firewall/address-list").get(list='Suspendido')
+    
+    addr_list_updated = []
+    for ip in response:
+        addr_list_updated.append({'ip' : ip['address'],'comment' : ip['comment']})    # ips mkt
+    
+    addr_list_updated_in_sheets = []
+    for i in addr_list_updated:
+        for e in sheet_list:
+            if i['ip'] == e['ip']:
+                item = {'ip' : i['ip'], 'comment' : i['comment']}
+                addr_list_updated_in_sheets.append(item)
+
     comment_list = []
     for comment in addr_list:
         for item in sheet_list:
             if item['ip'] == comment['ip']:
                 item = {'ip' : comment['ip'], 'comment' : comment['comment']}
                 comment_list.append(item)   # lista de comentarios
-                
+
     fecha = ' // SUSPENDIDO - 09/05/2023'
     comment_finally = []
-    for com in comment_list:
+    for com in addr_list_updated_in_sheets:
         item =  {'ip':com['ip'], 'comment':com['comment'] + fecha}
         comment_finally.append(item)
+
     return [comment_list, comment_finally]
+
 
 @app.post("/script")
 async def main(request: Request):
