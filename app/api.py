@@ -77,7 +77,6 @@ async def preview(request: Request):
     # si no esta en addr_list lo agregamos
     for ip in response:
         addr_list.append({'ip' : ip['address'],'comment' : ip['comment']})    # ips mkt
-        
 
     for item in addr_list:
         if item in sheet_list:
